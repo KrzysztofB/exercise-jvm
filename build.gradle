@@ -1,0 +1,91 @@
+plugins {
+	id 'java'
+	id 'groovy'
+	id 'org.springframework.boot' version '3.2.9'
+	id 'io.spring.dependency-management' version '1.1.6'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+
+ext {
+	versions = [
+		'groovy-json'	: '4.0.22',
+		'spock'			: '2.4-M4-groovy-4.0'
+	]
+}
+
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(22)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+sourceSets { //should be before dependencies?
+    intTest {
+		// add production sources to integration tests
+        compileClasspath += sourceSets.main.output
+        runtimeClasspath += sourceSets.main.output
+    }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	testImplementation "org.apache.groovy:groovy-json:${versions['groovy-json']}"
+	testImplementation "org.spockframework:spock-core:${versions.spock}"
+
+	// for intetgration tests in groovy/Spock
+	intTestImplementation "org.apache.groovy:groovy-json:${versions['groovy-json']}"
+	intTestImplementation "org.spockframework:spock-core:${versions.spock}"
+
+	// for integration tests in Java
+	intTestImplementation 'org.junit.jupiter:junit-jupiter'
+}
+
+
+configurations {  
+	// add code dependencies to integration tests
+	// use testImplementation and testRuntimeOnly 
+	// if intTest has same base dependenies as test
+    intTestImplementation.extendsFrom implementation 
+    intTestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+// This will set up a new source set called intTest (tests compilation) that
+// automatically creates: intTestImplementation, intTestCompileOnly, intTestRuntimeOnly 
+// configurations (and a few others that are less commonly needed)
+// A compileIntTestJava task that will compile all the source files 
+// under src/intTest/java
+
+tasks.named('test') {
+	useJUnitPlatform()
+
+	testLogging {
+        events "passed"
+    }
+}
+
+// add test execution
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests.'
+    group = 'verification'
+
+    testClassesDirs = sourceSets.intTest.output.classesDirs
+    classpath = sourceSets.intTest.runtimeClasspath
+    shouldRunAfter test
+
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed"
+    }
+}
+
+check.dependsOn integrationTest
